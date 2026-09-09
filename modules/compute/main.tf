@@ -1,5 +1,60 @@
 locals {
   name_prefix = "${var.app_name}-${var.environment}"
+  default_user_data = <<-EOF
+    #!/bin/bash
+    set -euxo pipefail
+
+# ---- Secret references (app reads these at runtime via the instance role - never baked in) ----
+    cat >> /etc/environment <<ENV
+    APP_SECRET_ARN=${var.app_secret_arn}
+    DB_SECRET_ARN=${var.db_secret_arn}
+    ENV
+
+    # ---- EFS mount (uploads) ----
+    dnf install -y amazon-efs-utils
+    mkdir -p ${var.efs_mount_path}
+    cat >> /etc/fstab <<FSTAB
+    ${var.efs_file_system_id}:/ ${var.efs_mount_path} efs _netdev,tls,iam,accesspoint=${var.efs_access_point_id} 0 0
+    FSTAB
+    mount -a -t efs
+    # ---- Placeholder app bootstrap ----
+    echo "Placeholder user data for ${local.name_prefix} - replace with actual app bootstrap"
+  EOF
+  user_data = var.user_data != null ? var.user_data : local.default_user_data
+}
+
+locals {
+  name_prefix = "${var.app_name}-${var.environment}"
+  default_user_data = <<-EOF
+    #!/bin/bash
+    set -euxo pipefail
+
+# ---- Secret references (app reads these at runtime via the instance role - never baked in) ----
+    cat >> /etc/environment <<ENV
+    APP_SECRET_ARN=${var.app_secret_arn}
+    DB_SECRET_ARN=${var.db_secret_arn}
+    ENV
+
+    # ---- EFS mount (uploads) ----
+    dnf install -y amazon-efs-utils
+    mkdir -p ${var.efs_mount_path}
+    cat >> /etc/fstab <<FSTAB
+    ${var.efs_file_system_id}:/ ${var.efs_mount_path} efs _netdev,tls,iam,accesspoint=${var.efs_access_point_id} 0 0
+    FSTAB
+    mount -a -t efs
+    # ---- Placeholder app bootstrap ----
+    echo "Placeholder user data for ${local.name_prefix} - replace with actual app bootstrap"
+  EOF
+  user_data = var.user_data != null ? var.user_data : local.default_user_data
+}
+
+# This stand up a sub python HTTP server on port 8080 and serves a simple text response for testing purposes. It is a temporary placeholder for the actual application deployment and should be replaced with the real application bootstrap process in production environments.
+# this is to let up prove requirements 1, 2, and 4 for real
+# Just enough to prove the path end-to-end, but not a real app deployment. The real app deployment should be done via a separate process (e.g., CI/CD pipeline) that deploys the actual application code and dependencies to the EC2 instances in the ASG.
+
+/*
+locals {
+  name_prefix = "${var.app_name}-${var.environment}"
 
   default_user_data = <<-EOF
     #!/bin/bash
@@ -56,16 +111,22 @@ locals {
     User=nobody
 
     [Install]
-    WantedBy=multi-user.target
-    UNITEOF
+            WantedBy=multi-user.target
+            UNITEOF
 
-    systemctl daemon-reload
-    systemctl enable --now stub-app
+            systemctl daemon-reload
+            systemctl enable --now stub-app
 
-    echo "Stub app running on port ${var.app_port} for ${local.name_prefix}"
-  EOF
+            echo "Stub app running on port ${var.app_port} for ${local.name_prefix}"
+        EOF
 
-  user_data = var.user_data != null ? var.user_data : local.default_user_data
+        user_data = var.user_data != null ? var.user_data : local.default_user_data
+        }
+*/
+
+locals {
+  name_prefix = "${var.app_name}-${var.environment}"
+  user_data   = var.user_data != null ? var.user_data : ""
 }
 
 # Always resolves to the latest Amazon Linux 2023 AMI at apply time - no hardcoded/deprecated AMI IDs
