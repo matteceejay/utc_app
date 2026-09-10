@@ -35,6 +35,13 @@ jobs:
         working-directory: app
         run: zip -r ../latest.zip . -x "venv/*" "*.pyc" "__pycache__/*"
 
+      - name: Debug OIDC claims
+        run: |
+          echo "Repo: ${{ github.repository }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Event: ${{ github.event_name }}"
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
