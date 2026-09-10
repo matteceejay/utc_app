@@ -85,3 +85,9 @@ output "app_secret_arn" {
 output "alerts_topic_arn" {
   value = module.observability.sns_topic_arn
 }
+
+# Outputs for CI/CD
+# The deploy role ARN is needed to allow GitHub Actions to assume the role and deploy the application.
+output "github_deploy_role_arn" {
+  value = module.cicd.deploy_role_arn
+}

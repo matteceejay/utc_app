@@ -34,19 +34,19 @@ resource "aws_iam_instance_profile" "app_instance" {
   })
 }
 
-# ---------- S3: read/write only within this bucket, only under logs/ and uploads/ ----------
+# ---------- S3: read/write only within this bucket, only under logs/ and uploads/; read-only under deploy/ ----------
 
 data "aws_iam_policy_document" "s3_access" {
   statement {
-    sid    = "ListBucketScopedPrefixes"
-    effect = "Allow"
-    actions = ["s3:ListBucket"]
+    sid       = "ListBucketScopedPrefixes"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
     resources = [var.s3_bucket_arn]
 
     condition {
       test     = "StringLike"
       variable = "s3:prefix"
-      values   = ["logs/*", "uploads/*"]
+      values   = ["logs/*", "uploads/*", "deploy/*"]
     }
   }
 
@@ -62,6 +62,13 @@ data "aws_iam_policy_document" "s3_access" {
       "${var.s3_bucket_arn}/logs/*",
       "${var.s3_bucket_arn}/uploads/*",
     ]
+  }
+
+  statement {
+    sid       = "ReadDeployArtifact"
+    effect    = "Allow"
+    actions   = ["s3:GetObject"]
+    resources = ["${var.s3_bucket_arn}/deploy/*"]
   }
 }
 

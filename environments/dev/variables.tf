@@ -179,3 +179,20 @@ variable "alert_email_addresses" {
   type    = list(string)
   default = []
 }
+
+
+# This variable specifies the GitHub organization name for the repository that contains the application's source code.
+# It is used for integration with GitHub Actions or other CI/CD pipelines that may require access to the repository.
+variable "github_org" {
+  type = string
+}
+
+variable "github_repo" {
+  type = string
+}
+
+# variables.tf
+variable "create_oidc_provider" {
+  type    = bool
+  default = true
+}

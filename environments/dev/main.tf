@@ -114,6 +114,16 @@ module "compute" {
   desired_capacity = var.desired_capacity
   app_port         = var.app_port
 
+
+
+# Additional variables for the compute module
+# This block is added to provide the necessary variables for the compute module, including EFS and secret ARNs, as well as instance configuration parameters.
+  deploy_bucket = module.storage.s3_bucket_name
+  deploy_prefix = "deploy/"
+  db_host       = module.database.db_address
+  db_port       = module.database.db_port
+  db_name       = module.database.db_name
+
   tags = var.tags
 }
 
@@ -208,6 +218,23 @@ module "observability" {
   alb_arn_suffix           = module.loadbalancer.alb_arn_suffix
   target_group_arn_suffix  = module.loadbalancer.target_group_arn_suffix
   db_instance_id           = module.database.db_instance_id
+
+  tags = var.tags
+}
+
+
+
+module "cicd" {
+  source = "../../modules/cicd"
+
+  app_name    = var.app_name
+  environment = "dev"
+
+  github_org  = var.github_org
+  github_repo = var.github_repo
+  create_oidc_provider = var.create_oidc_provider
+
+  deploy_bucket_arn = module.storage.s3_bucket_arn
 
   tags = var.tags
 }

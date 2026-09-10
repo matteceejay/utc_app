@@ -1,73 +1,21 @@
 locals {
   name_prefix = "${var.app_name}-${var.environment}"
-  default_user_data = <<-EOF
-    #!/bin/bash
-    set -euxo pipefail
-
-# ---- Secret references (app reads these at runtime via the instance role - never baked in) ----
-    cat >> /etc/environment <<ENV
-    APP_SECRET_ARN=${var.app_secret_arn}
-    DB_SECRET_ARN=${var.db_secret_arn}
-    ENV
-
-    # ---- EFS mount (uploads) ----
-    dnf install -y amazon-efs-utils
-    mkdir -p ${var.efs_mount_path}
-    cat >> /etc/fstab <<FSTAB
-    ${var.efs_file_system_id}:/ ${var.efs_mount_path} efs _netdev,tls,iam,accesspoint=${var.efs_access_point_id} 0 0
-    FSTAB
-    mount -a -t efs
-    # ---- Placeholder app bootstrap ----
-    echo "Placeholder user data for ${local.name_prefix} - replace with actual app bootstrap"
-  EOF
-  user_data = var.user_data != null ? var.user_data : local.default_user_data
-}
-
-locals {
-  name_prefix = "${var.app_name}-${var.environment}"
-  default_user_data = <<-EOF
-    #!/bin/bash
-    set -euxo pipefail
-
-# ---- Secret references (app reads these at runtime via the instance role - never baked in) ----
-    cat >> /etc/environment <<ENV
-    APP_SECRET_ARN=${var.app_secret_arn}
-    DB_SECRET_ARN=${var.db_secret_arn}
-    ENV
-
-    # ---- EFS mount (uploads) ----
-    dnf install -y amazon-efs-utils
-    mkdir -p ${var.efs_mount_path}
-    cat >> /etc/fstab <<FSTAB
-    ${var.efs_file_system_id}:/ ${var.efs_mount_path} efs _netdev,tls,iam,accesspoint=${var.efs_access_point_id} 0 0
-    FSTAB
-    mount -a -t efs
-    # ---- Placeholder app bootstrap ----
-    echo "Placeholder user data for ${local.name_prefix} - replace with actual app bootstrap"
-  EOF
-  user_data = var.user_data != null ? var.user_data : local.default_user_data
-}
-
-# This stand up a sub python HTTP server on port 8080 and serves a simple text response for testing purposes. It is a temporary placeholder for the actual application deployment and should be replaced with the real application bootstrap process in production environments.
-# this is to let up prove requirements 1, 2, and 4 for real
-# Just enough to prove the path end-to-end, but not a real app deployment. The real app deployment should be done via a separate process (e.g., CI/CD pipeline) that deploys the actual application code and dependencies to the EC2 instances in the ASG.
-
-/*
-locals {
-  name_prefix = "${var.app_name}-${var.environment}"
 
   default_user_data = <<-EOF
     #!/bin/bash
     set -euxo pipefail
 
-    # ---- Secret references (app reads these at runtime via the instance role - never baked in) ----
-    cat >> /etc/environment <<ENV
+    # ---- App environment: secret ARNs + DB connection info ----
+    cat > /etc/utc-app.env <<ENV
     APP_SECRET_ARN=${var.app_secret_arn}
     DB_SECRET_ARN=${var.db_secret_arn}
+    DB_HOST=${var.db_host}
+    DB_PORT=${var.db_port}
+    DB_NAME=${var.db_name}
     ENV
 
     # ---- EFS mount (uploads) ----
-    dnf install -y amazon-efs-utils
+    dnf install -y amazon-efs-utils python3 python3-pip unzip
 
     mkdir -p ${var.efs_mount_path}
 
@@ -77,56 +25,60 @@ locals {
 
     mount -a -t efs
 
-    # ---- Stub app (TEMPORARY - proves the path end-to-end; replace with real app deploy) ----
-    mkdir -p /opt/stub-app
+    # ---- App deploy mechanism (invoked by GitHub Actions via SSM on every push) ----
+    mkdir -p /opt/utc-app
 
-    cat > /opt/stub-app/server.py <<'PYEOF'
-    import http.server
-    import socketserver
+    cat > /usr/local/bin/deploy-app.sh <<'SCRIPT'
+    #!/bin/bash
+    set -euxo pipefail
 
-    PORT = ${var.app_port}
+    DEPLOY_BUCKET="${var.deploy_bucket}"
+    DEPLOY_KEY="${var.deploy_prefix}latest.zip"
+    APP_DIR="/opt/utc-app"
 
-    class Handler(http.server.BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(200)
-            self.send_header("Content-Type", "text/plain")
-            self.end_headers()
-            self.wfile.write(b"utc-app stub - OK\n")
+    aws s3 cp "s3://$DEPLOY_BUCKET/$DEPLOY_KEY" /tmp/app.zip
+    rm -rf "$APP_DIR"/*
+    unzip -o /tmp/app.zip -d "$APP_DIR"
 
-        def log_message(self, format, *args):
-            pass  # keep instance logs quiet
+    cd "$APP_DIR"
+    python3 -m venv venv
+    ./venv/bin/pip install --upgrade pip -q
+    ./venv/bin/pip install -r requirements.txt -q
 
-    with socketserver.TCPServer(("0.0.0.0", PORT), Handler) as httpd:
-        httpd.serve_forever()
-    PYEOF
+    systemctl restart utc-app
+    SCRIPT
 
-    cat > /etc/systemd/system/stub-app.service <<'UNITEOF'
+    chmod +x /usr/local/bin/deploy-app.sh
+
+    cat > /etc/systemd/system/utc-app.service <<UNITEOF
     [Unit]
-    Description=Temporary stub app for utc-app
+    Description=UTC Career Prep app
     After=network.target
 
     [Service]
-    ExecStart=/usr/bin/python3 /opt/stub-app/server.py
+    WorkingDirectory=/opt/utc-app
+    EnvironmentFile=/etc/utc-app.env
+    ExecStart=/opt/utc-app/venv/bin/gunicorn -w 2 -b 0.0.0.0:${var.app_port} wsgi:app
     Restart=always
-    User=nobody
+    User=ec2-user
 
     [Install]
-            WantedBy=multi-user.target
-            UNITEOF
+    WantedBy=multi-user.target
+    UNITEOF
 
-            systemctl daemon-reload
-            systemctl enable --now stub-app
+    systemctl daemon-reload
+    systemctl enable utc-app
 
-            echo "Stub app running on port ${var.app_port} for ${local.name_prefix}"
-        EOF
+    # Pull the artifact now if one already exists in S3; otherwise the service
+    # stays stopped until the first GitHub Actions deploy runs.
+    if aws s3api head-object --bucket "${var.deploy_bucket}" --key "${var.deploy_prefix}latest.zip" 2>/dev/null; then
+      /usr/local/bin/deploy-app.sh
+    else
+      echo "No deployed artifact yet at s3://${var.deploy_bucket}/${var.deploy_prefix}latest.zip"
+    fi
+  EOF
 
-        user_data = var.user_data != null ? var.user_data : local.default_user_data
-        }
-*/
-
-locals {
-  name_prefix = "${var.app_name}-${var.environment}"
-  user_data   = var.user_data != null ? var.user_data : ""
+  user_data = var.user_data != null ? var.user_data : local.default_user_data
 }
 
 # Always resolves to the latest Amazon Linux 2023 AMI at apply time - no hardcoded/deprecated AMI IDs
@@ -140,10 +92,7 @@ resource "aws_launch_template" "app" {
   instance_type = var.instance_type
   key_name      = var.key_name
 
-  network_interfaces {
-    associate_public_ip_address = false
-    security_groups             = [var.app_security_group_id]
-  }
+  vpc_security_group_ids = [var.app_security_group_id]
 
   metadata_options {
     http_endpoint               = "enabled"
@@ -245,3 +194,4 @@ resource "aws_autoscaling_policy" "request_count" {
     disable_scale_in = false
   }
 }
+

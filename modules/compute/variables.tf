@@ -125,3 +125,27 @@ variable "db_secret_arn" {
   type        = string
   default     = null
 }
+
+
+
+variable "deploy_bucket" {
+  description = "S3 bucket GitHub Actions uploads deploy artifacts to"
+  type        = string
+}
+
+variable "deploy_prefix" {
+  type    = string
+  default = "deploy/"
+}
+
+variable "db_host" {
+  type = string
+}
+
+variable "db_port" {
+  type = number
+}
+
+variable "db_name" {
+  type = string
+}

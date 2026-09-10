@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Create your account</h1>
+<form method="post">
+  <label>First name <input type="text" name="first_name" required></label>
+  <label>Last name <input type="text" name="last_name" required></label>
+  <label>Phone number <input type="tel" name="phone" required></label>
+  <label>Email <input type="email" name="email" required></label>
+  <label>Password <input type="password" name="password" required></label>
+
+  <fieldset>
+    <legend>Choose a career path</legend>
+    {% for path in career_paths %}
+      <label><input type="radio" name="career_path" value="{{ path }}" required> {{ path|capitalize }}</label>
+    {% endfor %}
+  </fieldset>
+
+  <button type="submit">Sign up</button>
+</form>
+{% endblock %}

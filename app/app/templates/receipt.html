@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Payment confirmed</h1>
+<p>This is a mock payment - no real charge was made.</p>
+<table>
+  <tr><th>Course</th><th>Amount</th><th>Date</th></tr>
+  {% for p in purchases %}
+  <tr>
+    <td>{{ p.course.title }}</td>
+    <td>${{ p.amount }}</td>
+    <td>{{ p.purchased_at.strftime('%Y-%m-%d %H:%M UTC') }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<a href="{{ url_for('courses.list_courses') }}">Back to courses</a>
+{% endblock %}
