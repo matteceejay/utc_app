@@ -30,6 +30,10 @@ def create_app():
     app.register_blueprint(courses_bp)
     app.register_blueprint(cart_bp)
 
+    @app.route("/")
+    def index():
+        return "OK", 200
+
     with app.app_context():
         db.create_all()
         from .seed import seed_courses
