@@ -109,6 +109,7 @@ module "compute" {
   db_secret_arn  = module.database.master_user_secret_arn
 
   instance_type    = var.instance_type
+  aws_region       = var.aws_region
   min_size         = var.min_size
   max_size         = var.max_size
   desired_capacity = var.desired_capacity
@@ -232,6 +233,8 @@ module "cicd" {
 
   github_org  = var.github_org
   github_repo = var.github_repo
+  github_org_id = var.github_org_id
+  github_repo_id = var.github_repo_id
   create_oidc_provider = var.create_oidc_provider
 
   deploy_bucket_arn = module.storage.s3_bucket_arn

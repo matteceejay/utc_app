@@ -196,3 +196,12 @@ variable "create_oidc_provider" {
   type    = bool
   default = true
 }
+
+
+variable "github_org_id" {
+  type = string
+}
+
+variable "github_repo_id" {
+  type = string
+}

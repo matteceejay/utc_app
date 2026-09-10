@@ -149,3 +149,9 @@ variable "db_port" {
 variable "db_name" {
   type = string
 }
+
+
+variable "aws_region" {
+  description = "AWS region instances run in - needed by boto3 for Secrets Manager calls"
+  type        = string
+}

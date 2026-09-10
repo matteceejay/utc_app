@@ -23,6 +23,13 @@ locals {
   oidc_provider_arn = var.create_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
 }
 
+# NOTE: GitHub repositories created after July 15, 2026 use "immutable subject
+# claims" by default - the sub claim embeds numeric owner/repo IDs
+# (e.g. "repo:org@123/repo@456:ref:...") instead of plain names, to prevent
+# subject recycling if a repo/org name is ever reused by someone else.
+# var.github_org_id / var.github_repo_id hold those IDs (format: "name@id"),
+# not the plain org/repo names - see var.github_org / var.github_repo below,
+# which are unused by this condition but kept for reference/tagging elsewhere.
 data "aws_iam_policy_document" "github_assume_role" {
   statement {
     effect  = "Allow"
@@ -43,7 +50,7 @@ data "aws_iam_policy_document" "github_assume_role" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_org}/${var.github_repo}:ref:refs/heads/${var.allowed_branch}"]
+      values   = ["repo:${var.github_org_id}/${var.github_repo_id}:ref:refs/heads/${var.allowed_branch}"]
     }
   }
 }

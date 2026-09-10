@@ -7,6 +7,7 @@ locals {
 
     # ---- App environment: secret ARNs + DB connection info ----
     cat > /etc/utc-app.env <<ENV
+    AWS_DEFAULT_REGION=${var.aws_region}
     APP_SECRET_ARN=${var.app_secret_arn}
     DB_SECRET_ARN=${var.db_secret_arn}
     DB_HOST=${var.db_host}

@@ -39,3 +39,15 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+
+
+variable "github_org_id" {
+  description = "Immutable numeric ID of the GitHub org/owner"
+  type        = string
+}
+
+variable "github_repo_id" {
+  description = "Immutable numeric ID of the GitHub repository"
+  type        = string
+}
